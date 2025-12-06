@@ -1,0 +1,47 @@
+services:
+  origin:
+    build: ./origin
+    container_name: origin
+    ports:
+      - "8080:8080"
+    networks:
+      - cdn-net
+    cap_add:
+      - NET_ADMIN
+    command: sh -c "apk update && apk add iproute2 && tc qdisc add dev eth0 root netem delay 30ms && nginx -g 'daemon off;'"
+  edge1:
+    image: nginx:stable-alpine
+    container_name: edge1
+    volumes:
+      - ./edge/edge1.conf:/etc/nginx/nginx.conf:ro
+      - edge1_cache:/var/cache/nginx
+    environment:
+      - EDGE_ID=US-EAST (edge1)
+    ports:
+      - "8081:8080"
+    depends_on:
+      - origin
+    networks:
+      - cdn-net
+  edge2:
+    image: nginx:stable-alpine
+    container_name: edge2
+    environment:
+      - EDGE_ID=EU-WEST (edge2)
+    volumes:
+      - ./edge/edge2.conf:/etc/nginx/nginx.conf:ro
+      - edge2_cache:/var/cache/nginx
+    ports:
+      - "8082:8080"
+    depends_on:
+      - origin
+    networks:
+      - cdn-net
+
+volumes:
+  edge1_cache:
+  edge2_cache:
+
+networks:
+  cdn-net:
+    driver: bridge
